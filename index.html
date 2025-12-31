@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>摺疊手機計時器</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            height: 100%; width: 100%;
+            overflow: hidden;
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        /* 上方區域：顯示圓點與碼表 */
+        #top-section {
+            height: 50vh;
+            width: 100%;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            border-bottom: 2px dashed #ccc;
+            overflow: hidden; /* 防止圓點縮放超出邊界 */
+        }
+
+        #green-dot {
+            width: 100px;
+            height: 100px;
+            background-color: #008000;
+            border-radius: 50%;
+            transform: scale(1);
+            touch-action: none; /* 停用預設瀏覽器縮放以利自訂手勢 */
+        }
+
+        #timer-display {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #333;
+        }
+
+        /* 下方區域：控制按鈕 */
+        #bottom-section {
+            height: 50vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .btn {
+            padding: 20px 60px;
+            font-size: 1.5rem;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            width: 80%;
+        }
+
+        #start-btn { background-color: #4CAF50; }
+        #stop-btn { background-color: #f44336; }
+
+        /* 側邊抽屜 */
+        #drawer {
+            position: fixed;
+            right: -300px;
+            top: 0;
+            width: 280px;
+            height: 100%;
+            background: white;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+            transition: 0.3s;
+            z-index: 100;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #drawer.open { right: 0; }
+
+        #drawer-toggle {
+            position: fixed;
+            right: 10px;
+            bottom: 10px;
+            background: #333;
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        h3 { margin-top: 0; }
+        .record-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="top-section">
+        <div id="green-dot"></div>
+        <div id="timer-display">00:00:00</div>
+    </div>
+
+    <div id="bottom-section">
+        <button id="start-btn" class="btn">開始計時</button>
+        <button id="stop-btn" class="btn">結束並記錄</button>
+    </div>
+
+    <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
+    <div id="drawer">
+        <h3>練習記錄表</h3>
+        <div id="record-list"></div>
+    </div>
+
+    <script>
+        // --- 縮放邏輯 ---
+        let dot = document.getElementById('green-dot');
+        let scale = 1;
+        let evCache = [];
+        let prevDiff = -1;
+
+        dot.ontouchstart = (ev) => { if (ev.targetTouches.length === 2) evCache.push(ev); };
+        dot.ontouchmove = (ev) => {
+            const touches = ev.targetTouches;
+            if (touches.length === 2) {
+                let curDiff = Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
+                if (prevDiff > 0) {
+                    if (curDiff > prevDiff) scale += 0.05;
+                    else if (curDiff < prevDiff && scale > 0.2) scale -= 0.05;
+                    dot.style.transform = `scale(${scale})`;
+                }
+                prevDiff = curDiff;
+            }
+        };
+        dot.ontouchend = (ev) => { if (ev.targetTouches.length < 2) prevDiff = -1; };
+
+        // --- 碼表邏輯 ---
+        let startTime;
+        let timerInterval;
+        let running = false;
+
+        const display = document.getElementById('timer-display');
+        const recordList = document.getElementById('record-list');
+
+        function updateTime() {
+            let now = new Date();
+            let diff = new Date(now - startTime);
+            let m = String(diff.getUTCMinutes()).padStart(2, '0');
+            let s = String(diff.getUTCSeconds()).padStart(2, '0');
+            let ms = String(Math.floor(diff.getUTCMilliseconds() / 10)).padStart(2, '0');
+            display.innerText = `${m}:${s}:${ms}`;
+        }
+
+        document.getElementById('start-btn').onclick = () => {
+            if (!running) {
+                startTime = new Date();
+                timerInterval = setInterval(updateTime, 10);
+                running = true;
+            }
+        };
+
+        document.getElementById('stop-btn').onclick = () => {
+            if (running) {
+                clearInterval(timerInterval);
+                running = false;
+                addRecord(display.innerText);
+            }
+        };
+
+        function addRecord(duration) {
+            const now = new Date();
+            const timestamp = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            const div = document.createElement('div');
+            div.className = 'record-item';
+            div.innerHTML = `<strong>耗時:</strong> ${duration} <br> <small>結束時間: ${timestamp}</small>`;
+            recordList.prepend(div);
+        }
+
+        // --- 抽屜控制 ---
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+        }
+    </script>
+</body>
+</html>
