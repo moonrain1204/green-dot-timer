@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>綠點計時器 v0.3</title>
+    <title>綠點計時器 v0.4</title>
     <style>
         body, html {
             margin: 0; padding: 0;
@@ -70,15 +70,24 @@
             font-weight: bold;
             cursor: pointer;
             flex: 1 1 40%;
-            transition: background 0.2s, opacity 0.2s;
+            transition: all 0.2s;
         }
 
         #start-pause-btn { background-color: #2ecc71; }
         #start-pause-btn.pausing { background-color: #f39c12; }
+        
+        /* 歸零按鈕樣式 */
         #reset-btn { background-color: #95a5a6; }
+        #reset-btn:disabled {
+            background-color: #dcdde1;
+            color: #7f8c8d;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
         #stop-btn { background-color: #e74c3c; width: 90%; flex: 1 1 90%; }
 
-        .btn:active { opacity: 0.8; }
+        .btn:active:not(:disabled) { opacity: 0.8; }
 
         #version-tag {
             position: fixed;
@@ -135,12 +144,12 @@
         <div id="timer-display">00:00:00</div>
         <div class="btn-container">
             <button id="start-pause-btn" class="btn">開始</button>
-            <button id="reset-btn" class="btn">歸零</button>
+            <button id="reset-btn" class="btn" disabled>歸零</button>
             <button id="stop-btn" class="btn">結束並記錄</button>
         </div>
     </div>
 
-    <div id="version-tag">v0.3</div>
+    <div id="version-tag">v0.4</div>
 
     <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
     <div id="drawer">
@@ -180,14 +189,16 @@
             }
         });
 
-        // --- 修正後的計時邏輯 (排除暫停時間) ---
+        // --- 計時邏輯 (v0.4 強化歸零鎖定) ---
         let timerInterval;
         let elapsedTime = 0; 
         let startTime;
         let running = false;
+        let hasUnsavedData = false;
 
         const display = document.getElementById('timer-display');
         const startPauseBtn = document.getElementById('start-pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
         const recordList = document.getElementById('record-list');
 
         function updateTime() {
@@ -208,6 +219,8 @@
                 startTime = Date.now();
                 timerInterval = setInterval(updateTime, 10);
                 running = true;
+                hasUnsavedData = true; // 標記有未儲存資料
+                resetBtn.disabled = true; // 只要在計時或有資料，就不能歸零
                 startPauseBtn.innerText = "暫停";
                 startPauseBtn.classList.add("pausing");
             } else {
@@ -216,20 +229,21 @@
                 running = false;
                 startPauseBtn.innerText = "開始";
                 startPauseBtn.classList.remove("pausing");
+                // 暫停後依然不可歸零，除非按下結束
             }
         };
 
-        document.getElementById('reset-btn').onclick = () => {
-            clearInterval(timerInterval);
-            elapsedTime = 0;
-            running = false;
-            display.innerText = "00:00:00";
-            startPauseBtn.innerText = "開始";
-            startPauseBtn.classList.remove("pausing");
+        // 歸零按鈕：只有在按下「結束」後才會啟動
+        resetBtn.onclick = () => {
+            if (!resetBtn.disabled) {
+                elapsedTime = 0;
+                display.innerText = "00:00:00";
+                hasUnsavedData = false;
+                resetBtn.disabled = true; // 歸零後再次鎖定
+            }
         };
 
         document.getElementById('stop-btn').onclick = () => {
-            // 計算實際純計時時長
             let finalTimeMs = elapsedTime;
             if (running) {
                 finalTimeMs += (Date.now() - startTime);
@@ -238,11 +252,14 @@
             if (finalTimeMs > 0) {
                 addRecord(formatTime(finalTimeMs));
                 
-                // 重置所有狀態
+                // 結束並記錄後的處理
                 clearInterval(timerInterval);
-                elapsedTime = 0;
+                elapsedTime = finalTimeMs; // 保留當前數值顯示
                 running = false;
-                display.innerText = "00:00:00";
+                hasUnsavedData = false; // 標記資料已儲存
+                
+                resetBtn.disabled = false; // 此時終於可以按下歸零了
+                
                 startPauseBtn.innerText = "開始";
                 startPauseBtn.classList.remove("pausing");
             }
