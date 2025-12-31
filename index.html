@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>綠點計時器 v0.1</title>
+    <title>綠點計時器 v0.3</title>
     <style>
         body, html {
             margin: 0; padding: 0;
@@ -13,7 +13,6 @@
             background-color: #f8f9fa;
         }
 
-        /* 上半部：僅放置綠點 */
         #top-section {
             height: 50vh;
             width: 100%;
@@ -31,20 +30,19 @@
             background-color: #008000;
             border-radius: 50%;
             transform: scale(1);
-            touch-action: none; /* 關鍵：禁用預設縮放以利JS接管 */
+            touch-action: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        /* 下半部：碼表 + 按鈕 */
         #bottom-section {
             height: 50vh;
             width: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start; /* 從頂部開始排列 */
+            justify-content: flex-start;
             align-items: center;
             padding-top: 20px;
-            gap: 15px;
+            gap: 10px;
         }
 
         #timer-display {
@@ -52,32 +50,36 @@
             font-weight: 700;
             font-family: monospace;
             color: #222;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .btn-container {
-            width: 85%;
+            width: 90%;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
         }
 
         .btn {
-            padding: 18px;
-            font-size: 1.4rem;
+            padding: 15px;
+            font-size: 1.2rem;
             border: none;
-            border-radius: 15px;
+            border-radius: 12px;
             color: white;
             font-weight: bold;
             cursor: pointer;
-            transition: opacity 0.2s;
+            flex: 1 1 40%;
+            transition: background 0.2s, opacity 0.2s;
         }
 
-        #start-btn { background-color: #2ecc71; }
-        #stop-btn { background-color: #e74c3c; }
+        #start-pause-btn { background-color: #2ecc71; }
+        #start-pause-btn.pausing { background-color: #f39c12; }
+        #reset-btn { background-color: #95a5a6; }
+        #stop-btn { background-color: #e74c3c; width: 90%; flex: 1 1 90%; }
+
         .btn:active { opacity: 0.8; }
 
-        /* 版本號與抽屜 */
         #version-tag {
             position: fixed;
             left: 10px;
@@ -109,7 +111,7 @@
             height: 100%;
             background: white;
             box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: 0.3s ease;
             z-index: 100;
             padding: 20px;
             overflow-y: auto;
@@ -132,12 +134,13 @@
     <div id="bottom-section">
         <div id="timer-display">00:00:00</div>
         <div class="btn-container">
-            <button id="start-btn" class="btn">開始計時</button>
+            <button id="start-pause-btn" class="btn">開始</button>
+            <button id="reset-btn" class="btn">歸零</button>
             <button id="stop-btn" class="btn">結束並記錄</button>
         </div>
     </div>
 
-    <div id="version-tag">v0.1</div>
+    <div id="version-tag">v0.3</div>
 
     <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
     <div id="drawer">
@@ -146,40 +149,28 @@
     </div>
 
     <script>
-        // --- 修正後的兩指縮放 (僅限綠點) ---
+        // --- 縮放邏輯 (僅限綠點) ---
         let dot = document.getElementById('green-dot');
         let currentScale = 1;
         let startDist = 0;
 
         dot.addEventListener('touchstart', (e) => {
             if (e.touches.length === 2) {
-                startDist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
+                startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
             }
         });
 
         dot.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2 && startDist > 0) {
                 e.preventDefault();
-                const currentDist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                const delta = currentDist / startDist;
-                let newScale = currentScale * delta;
-                
-                // 限制縮放範圍
-                if (newScale > 0.3 && newScale < 5) {
-                    dot.style.transform = `scale(${newScale})`;
-                }
+                const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                let newScale = currentScale * (currentDist / startDist);
+                if (newScale > 0.3 && newScale < 5) dot.style.transform = `scale(${newScale})`;
             }
         }, { passive: false });
 
         dot.addEventListener('touchend', (e) => {
             if (e.touches.length < 2) {
-                // 儲存當前縮放值
                 const transform = window.getComputedStyle(dot).getPropertyValue('transform');
                 if (transform !== 'none') {
                     const values = transform.split('(')[1].split(')')[0].split(',');
@@ -189,34 +180,71 @@
             }
         });
 
-        // --- 碼表邏輯 ---
-        let startTime, timerInterval, running = false;
+        // --- 修正後的計時邏輯 (排除暫停時間) ---
+        let timerInterval;
+        let elapsedTime = 0; 
+        let startTime;
+        let running = false;
+
         const display = document.getElementById('timer-display');
+        const startPauseBtn = document.getElementById('start-pause-btn');
         const recordList = document.getElementById('record-list');
 
         function updateTime() {
-            let diff = new Date(new Date() - startTime);
-            let m = String(diff.getUTCMinutes()).padStart(2, '0');
-            let s = String(diff.getUTCSeconds()).padStart(2, '0');
-            let ms = String(Math.floor(diff.getUTCMilliseconds() / 10)).padStart(2, '0');
-            display.innerText = `${m}:${s}:${ms}`;
+            const now = Date.now();
+            const currentSessionTime = now - startTime;
+            display.innerText = formatTime(elapsedTime + currentSessionTime);
         }
 
-        document.getElementById('start-btn').onclick = () => {
+        function formatTime(ms) {
+            let m = Math.floor(ms / 60000);
+            let s = Math.floor((ms % 60000) / 1000);
+            let mil = Math.floor((ms % 1000) / 10);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(mil).padStart(2, '0')}`;
+        }
+
+        startPauseBtn.onclick = () => {
             if (!running) {
-                startTime = new Date();
+                startTime = Date.now();
                 timerInterval = setInterval(updateTime, 10);
                 running = true;
-                document.getElementById('start-btn').style.opacity = "0.5";
+                startPauseBtn.innerText = "暫停";
+                startPauseBtn.classList.add("pausing");
+            } else {
+                clearInterval(timerInterval);
+                elapsedTime += (Date.now() - startTime);
+                running = false;
+                startPauseBtn.innerText = "開始";
+                startPauseBtn.classList.remove("pausing");
             }
         };
 
+        document.getElementById('reset-btn').onclick = () => {
+            clearInterval(timerInterval);
+            elapsedTime = 0;
+            running = false;
+            display.innerText = "00:00:00";
+            startPauseBtn.innerText = "開始";
+            startPauseBtn.classList.remove("pausing");
+        };
+
         document.getElementById('stop-btn').onclick = () => {
+            // 計算實際純計時時長
+            let finalTimeMs = elapsedTime;
             if (running) {
+                finalTimeMs += (Date.now() - startTime);
+            }
+
+            if (finalTimeMs > 0) {
+                addRecord(formatTime(finalTimeMs));
+                
+                // 重置所有狀態
                 clearInterval(timerInterval);
+                elapsedTime = 0;
                 running = false;
-                document.getElementById('start-btn').style.opacity = "1";
-                addRecord(display.innerText);
+                display.innerText = "00:00:00";
+                startPauseBtn.innerText = "開始";
+                startPauseBtn.classList.remove("pausing");
             }
         };
 
