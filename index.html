@@ -3,103 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>摺疊手機計時器</title>
+    <title>綠點計時器 v0.1</title>
     <style>
         body, html {
             margin: 0; padding: 0;
             height: 100%; width: 100%;
             overflow: hidden;
-            font-family: sans-serif;
-            background-color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
         }
 
-        /* 上方區域：顯示圓點與碼表 */
+        /* 上半部：僅放置綠點 */
         #top-section {
             height: 50vh;
             width: 100%;
-            background: #fff;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
-            position: relative;
-            border-bottom: 2px dashed #ccc;
-            overflow: hidden; /* 防止圓點縮放超出邊界 */
+            background: #ffffff;
+            border-bottom: 1px solid #eee;
+            overflow: hidden;
         }
 
         #green-dot {
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             background-color: #008000;
             border-radius: 50%;
             transform: scale(1);
-            touch-action: none; /* 停用預設瀏覽器縮放以利自訂手勢 */
+            touch-action: none; /* 關鍵：禁用預設縮放以利JS接管 */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        #timer-display {
-            font-size: 3rem;
-            font-weight: bold;
-            margin-top: 20px;
-            color: #333;
-        }
-
-        /* 下方區域：控制按鈕 */
+        /* 下半部：碼表 + 按鈕 */
         #bottom-section {
             height: 50vh;
             width: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start; /* 從頂部開始排列 */
             align-items: center;
-            gap: 20px;
+            padding-top: 20px;
+            gap: 15px;
+        }
+
+        #timer-display {
+            font-size: 3.5rem;
+            font-weight: 700;
+            font-family: monospace;
+            color: #222;
+            margin-bottom: 10px;
+        }
+
+        .btn-container {
+            width: 85%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .btn {
-            padding: 20px 60px;
-            font-size: 1.5rem;
+            padding: 18px;
+            font-size: 1.4rem;
             border: none;
-            border-radius: 12px;
+            border-radius: 15px;
             color: white;
+            font-weight: bold;
             cursor: pointer;
-            width: 80%;
+            transition: opacity 0.2s;
         }
 
-        #start-btn { background-color: #4CAF50; }
-        #stop-btn { background-color: #f44336; }
+        #start-btn { background-color: #2ecc71; }
+        #stop-btn { background-color: #e74c3c; }
+        .btn:active { opacity: 0.8; }
 
-        /* 側邊抽屜 */
+        /* 版本號與抽屜 */
+        #version-tag {
+            position: fixed;
+            left: 10px;
+            bottom: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+
+        #drawer-toggle {
+            position: fixed;
+            right: 15px;
+            bottom: 15px;
+            background: #444;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
         #drawer {
             position: fixed;
             right: -300px;
             top: 0;
-            width: 280px;
+            width: 260px;
             height: 100%;
             background: white;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.2);
-            transition: 0.3s;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+            transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 100;
             padding: 20px;
             overflow-y: auto;
         }
 
         #drawer.open { right: 0; }
-
-        #drawer-toggle {
-            position: fixed;
-            right: 10px;
-            bottom: 10px;
-            background: #333;
-            color: white;
-            padding: 10px;
-            border-radius: 50%;
-            cursor: pointer;
-            z-index: 101;
-        }
-
-        h3 { margin-top: 0; }
         .record-item {
-            border-bottom: 1px solid #ddd;
-            padding: 10px 0;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
             font-size: 0.9rem;
         }
     </style>
@@ -108,53 +127,75 @@
 
     <div id="top-section">
         <div id="green-dot"></div>
-        <div id="timer-display">00:00:00</div>
     </div>
 
     <div id="bottom-section">
-        <button id="start-btn" class="btn">開始計時</button>
-        <button id="stop-btn" class="btn">結束並記錄</button>
+        <div id="timer-display">00:00:00</div>
+        <div class="btn-container">
+            <button id="start-btn" class="btn">開始計時</button>
+            <button id="stop-btn" class="btn">結束並記錄</button>
+        </div>
     </div>
+
+    <div id="version-tag">v0.1</div>
 
     <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
     <div id="drawer">
-        <h3>練習記錄表</h3>
+        <h3 style="display:flex; justify-content: space-between;">練習記錄 <span onclick="toggleDrawer()" style="cursor:pointer">✕</span></h3>
         <div id="record-list"></div>
     </div>
 
     <script>
-        // --- 縮放邏輯 ---
+        // --- 修正後的兩指縮放 (僅限綠點) ---
         let dot = document.getElementById('green-dot');
-        let scale = 1;
-        let evCache = [];
-        let prevDiff = -1;
+        let currentScale = 1;
+        let startDist = 0;
 
-        dot.ontouchstart = (ev) => { if (ev.targetTouches.length === 2) evCache.push(ev); };
-        dot.ontouchmove = (ev) => {
-            const touches = ev.targetTouches;
-            if (touches.length === 2) {
-                let curDiff = Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
-                if (prevDiff > 0) {
-                    if (curDiff > prevDiff) scale += 0.05;
-                    else if (curDiff < prevDiff && scale > 0.2) scale -= 0.05;
-                    dot.style.transform = `scale(${scale})`;
-                }
-                prevDiff = curDiff;
+        dot.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 2) {
+                startDist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
             }
-        };
-        dot.ontouchend = (ev) => { if (ev.targetTouches.length < 2) prevDiff = -1; };
+        });
+
+        dot.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 2 && startDist > 0) {
+                e.preventDefault();
+                const currentDist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                const delta = currentDist / startDist;
+                let newScale = currentScale * delta;
+                
+                // 限制縮放範圍
+                if (newScale > 0.3 && newScale < 5) {
+                    dot.style.transform = `scale(${newScale})`;
+                }
+            }
+        }, { passive: false });
+
+        dot.addEventListener('touchend', (e) => {
+            if (e.touches.length < 2) {
+                // 儲存當前縮放值
+                const transform = window.getComputedStyle(dot).getPropertyValue('transform');
+                if (transform !== 'none') {
+                    const values = transform.split('(')[1].split(')')[0].split(',');
+                    currentScale = Math.sqrt(values[0]*values[0] + values[1]*values[1]);
+                }
+                startDist = 0;
+            }
+        });
 
         // --- 碼表邏輯 ---
-        let startTime;
-        let timerInterval;
-        let running = false;
-
+        let startTime, timerInterval, running = false;
         const display = document.getElementById('timer-display');
         const recordList = document.getElementById('record-list');
 
         function updateTime() {
-            let now = new Date();
-            let diff = new Date(now - startTime);
+            let diff = new Date(new Date() - startTime);
             let m = String(diff.getUTCMinutes()).padStart(2, '0');
             let s = String(diff.getUTCSeconds()).padStart(2, '0');
             let ms = String(Math.floor(diff.getUTCMilliseconds() / 10)).padStart(2, '0');
@@ -166,6 +207,7 @@
                 startTime = new Date();
                 timerInterval = setInterval(updateTime, 10);
                 running = true;
+                document.getElementById('start-btn').style.opacity = "0.5";
             }
         };
 
@@ -173,20 +215,20 @@
             if (running) {
                 clearInterval(timerInterval);
                 running = false;
+                document.getElementById('start-btn').style.opacity = "1";
                 addRecord(display.innerText);
             }
         };
 
         function addRecord(duration) {
             const now = new Date();
-            const timestamp = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
             const div = document.createElement('div');
             div.className = 'record-item';
-            div.innerHTML = `<strong>耗時:</strong> ${duration} <br> <small>結束時間: ${timestamp}</small>`;
+            div.innerHTML = `<b>耗時:</b> ${duration}<br><small style="color:#666">結束於 ${timeStr}</small>`;
             recordList.prepend(div);
         }
 
-        // --- 抽屜控制 ---
         function toggleDrawer() {
             document.getElementById('drawer').classList.toggle('open');
         }
