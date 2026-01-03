@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>綠點計時器 v0.5</title>
+    <title>綠點計時器 v0.6 - 佛學練習版</title>
     <style>
         body, html {
             margin: 0; padding: 0;
@@ -13,17 +13,34 @@
             background-color: #f8f9fa;
         }
 
+        /* 上半部：滑動容器 */
         #top-section {
             height: 50vh;
             width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             background: #ffffff;
             border-bottom: 1px solid #eee;
+            position: relative;
             overflow: hidden;
         }
 
+        #slider {
+            display: flex;
+            width: 200%; /* 兩倍寬度放兩個頁面 */
+            height: 100%;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .slide-page {
+            width: 50%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 綠點樣式 */
         #green-dot {
             width: 120px;
             height: 120px;
@@ -34,6 +51,16 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
+        /* 佛像樣式 */
+        #buddha-img {
+            max-height: 90%;
+            max-width: 90%;
+            transform: scale(1);
+            touch-action: none;
+            object-fit: contain;
+        }
+
+        /* 下半部：碼表 + 按鈕 */
         #bottom-section {
             height: 50vh;
             width: 100%;
@@ -43,6 +70,7 @@
             align-items: center;
             padding-top: 20px;
             gap: 10px;
+            background: #f8f9fa;
         }
 
         #timer-display {
@@ -82,68 +110,50 @@
             cursor: not-allowed;
             opacity: 0.6;
         }
-
         #stop-btn { background-color: #e74c3c; width: 90%; flex: 1 1 90%; }
 
         .btn:active:not(:disabled) { opacity: 0.8; }
 
-        #version-tag {
-            position: fixed;
-            left: 10px;
-            bottom: 10px;
-            font-size: 12px;
-            color: #999;
-        }
-
+        /* 版本與側欄 */
+        #version-tag { position: fixed; left: 10px; bottom: 10px; font-size: 12px; color: #999; }
         #drawer-toggle {
-            position: fixed;
-            right: 15px;
-            bottom: 15px;
-            background: #444;
-            color: white;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            position: fixed; right: 15px; bottom: 15px; background: #444; color: white;
+            width: 44px; height: 44px; border-radius: 50%; display: flex;
+            justify-content: center; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 101;
         }
-
         #drawer {
-            position: fixed;
-            right: -300px;
-            top: 0;
-            width: 260px;
-            height: 100%;
-            background: white;
-            box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-            transition: 0.3s ease;
-            z-index: 100;
-            padding: 20px;
-            overflow-y: auto;
+            position: fixed; right: -300px; top: 0; width: 260px; height: 100%;
+            background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+            transition: 0.3s ease; z-index: 102; padding: 20px; overflow-y: auto;
         }
-
         #drawer.open { right: 0; }
-        .record-item {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            font-size: 0.9rem;
+        .record-item { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        .clear-storage { font-size: 10px; color: #e74c3c; text-decoration: underline; margin-top: 20px; display: block; }
+        
+        /* 指示點 */
+        .dots-nav {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 8px;
         }
-        .clear-storage {
-            font-size: 10px;
-            color: #e74c3c;
-            text-decoration: underline;
-            cursor: pointer;
-            margin-top: 20px;
-            display: block;
-        }
+        .dot-nav { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .dot-nav.active { background: #008000; }
     </style>
 </head>
 <body>
 
     <div id="top-section">
-        <div id="green-dot"></div>
+        <div id="slider">
+            <div class="slide-page">
+                <div id="green-dot"></div>
+            </div>
+            <div class="slide-page">
+                <img id="buddha-img" src="https://raw.githubusercontent.com/moonrain1204/green-dot-timer/main/1000010289.png" alt="大自在王佛" onerror="this.src='https://i.imgur.com/8N69FmK.png'">
+            </div>
+        </div>
+        <div class="dots-nav">
+            <div id="dot1" class="dot-nav active"></div>
+            <div id="dot2" class="dot-nav"></div>
+        </div>
     </div>
 
     <div id="bottom-section">
@@ -155,7 +165,7 @@
         </div>
     </div>
 
-    <div id="version-tag">v0.5</div>
+    <div id="version-tag">v0.6</div>
 
     <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
     <div id="drawer">
@@ -165,49 +175,78 @@
     </div>
 
     <script>
-        // --- 縮放邏輯 ---
-        let dot = document.getElementById('green-dot');
-        let currentScale = 1;
-        let startDist = 0;
+        // --- 1. 滑動切換邏輯 ---
+        const slider = document.getElementById('slider');
+        const topSection = document.getElementById('top-section');
+        const dot1 = document.getElementById('dot1');
+        const dot2 = document.getElementById('dot2');
+        let startX = 0;
+        let currentSlide = 0;
 
-        dot.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 2) {
-                startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-            }
+        topSection.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) startX = e.touches[0].pageX;
         });
 
-        dot.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 2 && startDist > 0) {
-                e.preventDefault();
-                const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                let newScale = currentScale * (currentDist / startDist);
-                if (newScale > 0.3 && newScale < 5) dot.style.transform = `scale(${newScale})`;
-            }
-        }, { passive: false });
-
-        dot.addEventListener('touchend', (e) => {
-            if (e.touches.length < 2) {
-                const transform = window.getComputedStyle(dot).getPropertyValue('transform');
-                if (transform !== 'none') {
-                    const values = transform.split('(')[1].split(')')[0].split(',');
-                    currentScale = Math.sqrt(values[0]*values[0] + values[1]*values[1]);
+        topSection.addEventListener('touchend', (e) => {
+            if (e.changedTouches.length === 1) {
+                let diff = startX - e.changedTouches[0].pageX;
+                if (Math.abs(diff) > 50) { // 滑動門檻
+                    if (diff > 0) currentSlide = 1; // 往左滑看第二頁
+                    else currentSlide = 0; // 往右滑回第一頁
+                    updateSlider();
                 }
-                startDist = 0;
             }
         });
 
-        // --- 計時與儲存邏輯 ---
-        let timerInterval;
-        let elapsedTime = 0; 
-        let startTime;
-        let running = false;
+        function updateSlider() {
+            slider.style.transform = `translateX(-${currentSlide * 50}%)`;
+            dot1.classList.toggle('active', currentSlide === 0);
+            dot2.classList.toggle('active', currentSlide === 1);
+        }
 
+        // --- 2. 獨立縮放邏輯 (封裝功能) ---
+        function setupZoom(elementId) {
+            let el = document.getElementById(elementId);
+            let scale = 1;
+            let startDist = 0;
+
+            el.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                }
+            });
+
+            el.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && startDist > 0) {
+                    e.preventDefault();
+                    const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    let newScale = scale * (currentDist / startDist);
+                    if (newScale > 0.2 && newScale < 10) el.style.transform = `scale(${newScale})`;
+                }
+            }, { passive: false });
+
+            el.addEventListener('touchend', (e) => {
+                if (e.touches.length < 2) {
+                    const transform = window.getComputedStyle(el).getPropertyValue('transform');
+                    if (transform !== 'none') {
+                        const values = transform.split('(')[1].split(')')[0].split(',');
+                        scale = Math.sqrt(values[0]*values[0] + values[1]*values[1]);
+                    }
+                    startDist = 0;
+                }
+            });
+        }
+
+        setupZoom('green-dot');
+        setupZoom('buddha-img');
+
+        // --- 3. 計時與儲存邏輯 (保留 v0.5) ---
+        let timerInterval, elapsedTime = 0, startTime, running = false;
         const display = document.getElementById('timer-display');
         const startPauseBtn = document.getElementById('start-pause-btn');
         const resetBtn = document.getElementById('reset-btn');
         const recordListContainer = document.getElementById('record-list');
 
-        // 頁面載入時讀取本地紀錄
         window.onload = () => {
             const savedRecords = JSON.parse(localStorage.getItem('my_timer_records') || '[]');
             savedRecords.forEach(rec => renderRecord(rec.duration, rec.time));
@@ -253,16 +292,11 @@
         document.getElementById('stop-btn').onclick = () => {
             let finalTimeMs = elapsedTime;
             if (running) finalTimeMs += (Date.now() - startTime);
-
             if (finalTimeMs > 0) {
                 const durationStr = formatTime(finalTimeMs);
                 const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                
-                // 儲存至本地
                 saveToLocalStorage(durationStr, timeStr);
-                // 顯示在介面
                 renderRecord(durationStr, timeStr);
-                
                 clearInterval(timerInterval);
                 elapsedTime = finalTimeMs;
                 running = false;
@@ -292,9 +326,7 @@
             }
         }
 
-        function toggleDrawer() {
-            document.getElementById('drawer').classList.toggle('open');
-        }
+        function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
     </script>
 </body>
 </html>
