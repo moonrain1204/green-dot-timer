@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>綠點計時器 v0.6 - 佛學練習版</title>
+    <title>綠點計時器 v0.7</title>
     <style>
         body, html {
             margin: 0; padding: 0;
@@ -21,11 +21,12 @@
             border-bottom: 1px solid #eee;
             position: relative;
             overflow: hidden;
+            touch-action: none; /* 禁用瀏覽器預設手勢 */
         }
 
         #slider {
             display: flex;
-            width: 200%; /* 兩倍寬度放兩個頁面 */
+            width: 200%;
             height: 100%;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -40,24 +41,23 @@
             position: relative;
         }
 
-        /* 綠點樣式 */
         #green-dot {
             width: 120px;
             height: 120px;
             background-color: #008000;
             border-radius: 50%;
-            transform: scale(1);
+            transform: translate(0, 0) scale(1);
             touch-action: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        /* 佛像樣式 */
         #buddha-img {
-            max-height: 90%;
-            max-width: 90%;
-            transform: scale(1);
+            max-height: 95%;
+            max-width: 95%;
+            transform: translate(0, 0) scale(1); /* 支援位移與縮放 */
             touch-action: none;
             object-fit: contain;
+            cursor: move;
         }
 
         /* 下半部：碼表 + 按鈕 */
@@ -71,6 +71,7 @@
             padding-top: 20px;
             gap: 10px;
             background: #f8f9fa;
+            z-index: 10;
         }
 
         #timer-display {
@@ -104,33 +105,23 @@
         #start-pause-btn { background-color: #2ecc71; }
         #start-pause-btn.pausing { background-color: #f39c12; }
         #reset-btn { background-color: #95a5a6; }
-        #reset-btn:disabled {
-            background-color: #dcdde1;
-            color: #7f8c8d;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
+        #reset-btn:disabled { background-color: #dcdde1; color: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
         #stop-btn { background-color: #e74c3c; width: 90%; flex: 1 1 90%; }
 
-        .btn:active:not(:disabled) { opacity: 0.8; }
-
-        /* 版本與側欄 */
         #version-tag { position: fixed; left: 10px; bottom: 10px; font-size: 12px; color: #999; }
         #drawer-toggle {
             position: fixed; right: 15px; bottom: 15px; background: #444; color: white;
             width: 44px; height: 44px; border-radius: 50%; display: flex;
-            justify-content: center; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 101;
+            justify-content: center; align-items: center; z-index: 101;
         }
         #drawer {
             position: fixed; right: -300px; top: 0; width: 260px; height: 100%;
-            background: white; box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-            transition: 0.3s ease; z-index: 102; padding: 20px; overflow-y: auto;
+            background: white; z-index: 102; padding: 20px; transition: 0.3s ease;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
         }
         #drawer.open { right: 0; }
         .record-item { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-        .clear-storage { font-size: 10px; color: #e74c3c; text-decoration: underline; margin-top: 20px; display: block; }
-        
-        /* 指示點 */
+
         .dots-nav {
             position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
             display: flex; gap: 8px;
@@ -143,11 +134,9 @@
 
     <div id="top-section">
         <div id="slider">
+            <div class="slide-page"><div id="green-dot"></div></div>
             <div class="slide-page">
-                <div id="green-dot"></div>
-            </div>
-            <div class="slide-page">
-                <img id="buddha-img" src="https://raw.githubusercontent.com/moonrain1204/green-dot-timer/main/1000010289.png" alt="大自在王佛" onerror="this.src='https://i.imgur.com/8N69FmK.png'">
+                <img id="buddha-img" src="1000010289.png" alt="大自在王佛">
             </div>
         </div>
         <div class="dots-nav">
@@ -165,167 +154,145 @@
         </div>
     </div>
 
-    <div id="version-tag">v0.6</div>
+    <div id="version-tag">v0.7</div>
 
     <div id="drawer-toggle" onclick="toggleDrawer()">📋</div>
     <div id="drawer">
         <h3 style="display:flex; justify-content: space-between;">本地練習記錄 <span onclick="toggleDrawer()" style="cursor:pointer">✕</span></h3>
         <div id="record-list"></div>
-        <span class="clear-storage" onclick="clearAllRecords()">清除此手機所有記錄</span>
+        <span style="font-size: 10px; color: #e74c3c; text-decoration: underline; cursor: pointer;" onclick="clearAllRecords()">清除此手機所有記錄</span>
     </div>
 
     <script>
-        // --- 1. 滑動切換邏輯 ---
+        // --- 1. 滑動切換 (修正後的邏輯，避免與拖動衝突) ---
         const slider = document.getElementById('slider');
         const topSection = document.getElementById('top-section');
         const dot1 = document.getElementById('dot1');
         const dot2 = document.getElementById('dot2');
-        let startX = 0;
-        let currentSlide = 0;
+        let startX = 0, currentSlide = 0, isSliderAction = false;
 
         topSection.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) startX = e.touches[0].pageX;
-        });
+            if (e.touches.length === 1) {
+                startX = e.touches[0].pageX;
+                isSliderAction = true;
+            } else {
+                isSliderAction = false;
+            }
+        }, {passive: true});
 
         topSection.addEventListener('touchend', (e) => {
-            if (e.changedTouches.length === 1) {
+            if (isSliderAction && e.changedTouches.length === 1) {
                 let diff = startX - e.changedTouches[0].pageX;
-                if (Math.abs(diff) > 50) { // 滑動門檻
-                    if (diff > 0) currentSlide = 1; // 往左滑看第二頁
-                    else currentSlide = 0; // 往右滑回第一頁
-                    updateSlider();
+                // 只有在快速且長距離滑動時才切換頁面
+                if (Math.abs(diff) > 80) {
+                    currentSlide = diff > 0 ? 1 : 0;
+                    slider.style.transform = `translateX(-${currentSlide * 50}%)`;
+                    dot1.classList.toggle('active', currentSlide === 0);
+                    dot2.classList.toggle('active', currentSlide === 1);
                 }
             }
         });
 
-        function updateSlider() {
-            slider.style.transform = `translateX(-${currentSlide * 50}%)`;
-            dot1.classList.toggle('active', currentSlide === 0);
-            dot2.classList.toggle('active', currentSlide === 1);
-        }
-
-        // --- 2. 獨立縮放邏輯 (封裝功能) ---
-        function setupZoom(elementId) {
-            let el = document.getElementById(elementId);
-            let scale = 1;
-            let startDist = 0;
+        // --- 2. 強化版縮放與拖動功能 (支援上下移動) ---
+        function setupEnhancedTouch(id) {
+            let el = document.getElementById(id);
+            let scale = 1, lastScale = 1;
+            let posX = 0, posY = 0, lastPosX = 0, lastPosY = 0;
+            let startDist = 0, startX = 0, startY = 0;
 
             el.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 2) {
+                if (e.touches.length === 1) {
+                    // 單指：準備拖動
+                    startX = e.touches[0].pageX;
+                    startY = e.touches[0].pageY;
+                } else if (e.touches.length === 2) {
+                    // 兩指：準備縮放
                     startDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
                 }
-            });
+            }, {passive: false});
 
             el.addEventListener('touchmove', (e) => {
-                if (e.touches.length === 2 && startDist > 0) {
-                    e.preventDefault();
-                    const currentDist = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                    let newScale = scale * (currentDist / startDist);
-                    if (newScale > 0.2 && newScale < 10) el.style.transform = `scale(${newScale})`;
+                e.preventDefault(); // 防止滾動頁面
+
+                if (e.touches.length === 1) {
+                    // 執行平移 (僅在佛像頁面或綠點頁面內部移動)
+                    let dx = e.touches[0].pageX - startX;
+                    let dy = e.touches[0].pageY - startY;
+                    posX = lastPosX + dx;
+                    posY = lastPosY + dy;
+                    updateTransform();
+                } else if (e.touches.length === 2) {
+                    // 執行縮放
+                    let d = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                    scale = lastScale * (d / startDist);
+                    if (scale < 0.2) scale = 0.2;
+                    if (scale > 15) scale = 15;
+                    updateTransform();
                 }
             }, { passive: false });
 
             el.addEventListener('touchend', (e) => {
-                if (e.touches.length < 2) {
-                    const transform = window.getComputedStyle(el).getPropertyValue('transform');
-                    if (transform !== 'none') {
-                        const values = transform.split('(')[1].split(')')[0].split(',');
-                        scale = Math.sqrt(values[0]*values[0] + values[1]*values[1]);
-                    }
-                    startDist = 0;
-                }
+                lastPosX = posX;
+                lastPosY = posY;
+                lastScale = scale;
             });
+
+            function updateTransform() {
+                el.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+            }
         }
 
-        setupZoom('green-dot');
-        setupZoom('buddha-img');
+        setupEnhancedTouch('green-dot');
+        setupEnhancedTouch('buddha-img');
 
-        // --- 3. 計時與儲存邏輯 (保留 v0.5) ---
+        // --- 3. 計時與儲存邏輯 (保留 v0.5/v0.6) ---
         let timerInterval, elapsedTime = 0, startTime, running = false;
-        const display = document.getElementById('timer-display');
-        const startPauseBtn = document.getElementById('start-pause-btn');
-        const resetBtn = document.getElementById('reset-btn');
-        const recordListContainer = document.getElementById('record-list');
+        const display = document.getElementById('timer-display'), startPauseBtn = document.getElementById('start-pause-btn'), resetBtn = document.getElementById('reset-btn'), recordList = document.getElementById('record-list');
 
         window.onload = () => {
-            const savedRecords = JSON.parse(localStorage.getItem('my_timer_records') || '[]');
-            savedRecords.forEach(rec => renderRecord(rec.duration, rec.time));
+            const saved = JSON.parse(localStorage.getItem('my_timer_records') || '[]');
+            saved.forEach(rec => renderRecord(rec.duration, rec.time));
         };
 
-        function updateTime() {
-            const now = Date.now();
-            display.innerText = formatTime(elapsedTime + (now - startTime));
-        }
-
         function formatTime(ms) {
-            let m = Math.floor(ms / 60000);
-            let s = Math.floor((ms % 60000) / 1000);
-            let mil = Math.floor((ms % 1000) / 10);
+            let m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), mil = Math.floor((ms % 1000) / 10);
             return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(mil).padStart(2, '0')}`;
         }
 
         startPauseBtn.onclick = () => {
             if (!running) {
                 startTime = Date.now();
-                timerInterval = setInterval(updateTime, 10);
-                running = true;
-                resetBtn.disabled = true;
-                startPauseBtn.innerText = "暫停";
-                startPauseBtn.classList.add("pausing");
+                timerInterval = setInterval(() => { display.innerText = formatTime(elapsedTime + (Date.now() - startTime)); }, 10);
+                running = true; resetBtn.disabled = true;
+                startPauseBtn.innerText = "暫停"; startPauseBtn.classList.add("pausing");
             } else {
-                clearInterval(timerInterval);
-                elapsedTime += (Date.now() - startTime);
-                running = false;
-                startPauseBtn.innerText = "開始";
-                startPauseBtn.classList.remove("pausing");
+                clearInterval(timerInterval); elapsedTime += (Date.now() - startTime);
+                running = false; startPauseBtn.innerText = "開始"; startPauseBtn.classList.remove("pausing");
             }
         };
 
-        resetBtn.onclick = () => {
-            if (!resetBtn.disabled) {
-                elapsedTime = 0;
-                display.innerText = "00:00:00";
-                resetBtn.disabled = true;
-            }
-        };
+        resetBtn.onclick = () => { elapsedTime = 0; display.innerText = "00:00:00"; resetBtn.disabled = true; };
 
         document.getElementById('stop-btn').onclick = () => {
-            let finalTimeMs = elapsedTime;
-            if (running) finalTimeMs += (Date.now() - startTime);
-            if (finalTimeMs > 0) {
-                const durationStr = formatTime(finalTimeMs);
-                const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                saveToLocalStorage(durationStr, timeStr);
-                renderRecord(durationStr, timeStr);
-                clearInterval(timerInterval);
-                elapsedTime = finalTimeMs;
-                running = false;
-                resetBtn.disabled = false;
-                startPauseBtn.innerText = "開始";
-                startPauseBtn.classList.remove("pausing");
+            let final = elapsedTime + (running ? (Date.now() - startTime) : 0);
+            if (final > 0) {
+                const d = formatTime(final), t = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                renderRecord(d, t);
+                const records = JSON.parse(localStorage.getItem('my_timer_records') || '[]');
+                records.unshift({ duration: d, time: t });
+                localStorage.setItem('my_timer_records', JSON.stringify(records));
+                clearInterval(timerInterval); elapsedTime = final; running = false;
+                resetBtn.disabled = false; startPauseBtn.innerText = "開始"; startPauseBtn.classList.remove("pausing");
             }
         };
 
-        function saveToLocalStorage(duration, time) {
-            const records = JSON.parse(localStorage.getItem('my_timer_records') || '[]');
-            records.unshift({ duration, time });
-            localStorage.setItem('my_timer_records', JSON.stringify(records));
+        function renderRecord(d, t) {
+            const div = document.createElement('div'); div.className = 'record-item';
+            div.innerHTML = `<b>耗時:</b> ${d}<br><small>結束於 ${t}</small>`;
+            recordList.prepend(div);
         }
 
-        function renderRecord(duration, time) {
-            const div = document.createElement('div');
-            div.className = 'record-item';
-            div.innerHTML = `<b>耗時:</b> ${duration}<br><small style="color:#666">結束於 ${time}</small>`;
-            recordListContainer.prepend(div);
-        }
-
-        function clearAllRecords() {
-            if(confirm("確定要刪除這隻手機上的所有記錄嗎？")) {
-                localStorage.removeItem('my_timer_records');
-                recordListContainer.innerHTML = '';
-            }
-        }
-
+        function clearAllRecords() { if(confirm("確定清除紀錄？")) { localStorage.removeItem('my_timer_records'); recordList.innerHTML = ''; } }
         function toggleDrawer() { document.getElementById('drawer').classList.toggle('open'); }
     </script>
 </body>
