@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>佛系計數計時器 v0.9</title>
+    <title>佛系計數計時器 v1.0</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F5DC; font-family: sans-serif; user-select: none; }
@@ -21,7 +21,6 @@
         /* 下半部：計數與計時區 */
         #bottom-section { height: 55vh; width: 100%; position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
         
-        /* 計數器樣式 */
         #click-area { width: 100%; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; }
         #sacred-text { color: #8B4513; font-family: '標楷體'; font-size: 24px; font-weight: 900; margin-bottom: 5px; }
         #counter { color: #00008B; font-size: 100px; font-weight: bold; line-height: 1; }
@@ -29,9 +28,12 @@
 
         /* 按鈕區 */
         .ui-panel { width: 95%; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 15px; }
-        .btn { padding: 12px 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; min-width: 60px; }
-        .btn-audio { background-color: #4A90E2; } 
-        .btn-stop-audio { background-color: #555; } 
+        .btn { padding: 12px 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; min-width: 80px; transition: background 0.3s; }
+        
+        /* 播放/停止複合鈕樣式 */
+        #audio-toggle-btn { background-color: #4A90E2; width: 200px; font-size: 1.1rem; }
+        #audio-toggle-btn.playing { background-color: #555; } /* 播放中變灰色 */
+
         .btn-timer-stop { background-color: #e74c3c; flex: 1 1 90%; margin-top: 5px; } 
         .btn-reset { background-color: #d9534f; font-size: 12px; }
         
@@ -73,8 +75,7 @@
         </div>
 
         <div class="ui-panel">
-            <button class="btn btn-audio" onclick="playAudioWithTimer()">播放音檔 & 開始計時</button>
-            <button class="btn btn-stop-audio" onclick="stopAudioWithTimer()">停止音檔</button>
+            <button id="audio-toggle-btn" class="btn" onclick="toggleAudioAndTimer()">▶ 播放音檔 & 計時</button>
             
             <div style="display:flex; gap:8px;">
                 <button class="btn btn-reset" onclick="safeReset()">歸零</button>
@@ -85,55 +86,42 @@
             <button id="stop-btn" class="btn btn-timer-stop">結束並記錄本次練習</button>
         </div>
         
-        <div id="debug-info" style="font-size: 10px; color: #8B4513; margin-bottom: 5px;">v0.9 | 純淨本地版</div>
+        <div id="debug-info" style="font-size: 10px; color: #8B4513; margin-bottom: 5px;">v1.0 | 循環播放切換版</div>
     </div>
 
-    <audio id="sacred-audio" src="南無本師大自在王佛.wav" preload="auto"></audio>
+    <audio id="sacred-audio" src="南無本師大自在王佛.wav" preload="auto" loop></audio>
 
     <script>
-        // --- 初始化變數 ---
         let count = parseInt(localStorage.getItem('myCounter')) || 0;
         let fontSize = parseInt(localStorage.getItem('myFontSize')) || 100;
         let historyArr = JSON.parse(localStorage.getItem('myHistory')) || [];
         let timerInterval, elapsedTime = 0, startTime, running = false;
         const audio = document.getElementById('sacred-audio');
+        const toggleBtn = document.getElementById('audio-toggle-btn');
 
-        // --- 更新介面 ---
         function updateDisplay() {
             document.getElementById('counter').innerText = count;
             document.getElementById('counter').style.fontSize = fontSize + "px";
             localStorage.setItem('myCounter', count);
         }
 
-        // --- 計數功能 ---
-        function resize(delta) { fontSize += delta; if(fontSize < 40) fontSize = 40; updateDisplay(); localStorage.setItem('myFontSize', fontSize); }
-        
-        function safeReset() {
-            if (confirm("⚠️ 確定要歸零計數嗎？目前的計數將存入歷史紀錄。")) {
-                if (count > 0) saveHistory(count);
-                count = 0; 
-                updateDisplay();
+        // --- 音檔與計時切換核心邏輯 ---
+        function toggleAudioAndTimer() {
+            if (!running) {
+                // 開始播放與計時
+                audio.play();
+                startTimer();
+                toggleBtn.innerText = "■ 停止音檔 & 暫停";
+                toggleBtn.classList.add('playing');
+            } else {
+                // 停止播放與暫停計時
+                audio.pause();
+                // 若要每次停止都回到音檔開頭，請取消下面這行註釋
+                // audio.currentTime = 0; 
+                pauseTimer();
+                toggleBtn.innerText = "▶ 播放音檔 & 計時";
+                toggleBtn.classList.remove('playing');
             }
-        }
-
-        function saveHistory(val) {
-            historyArr.unshift({time: new Date().toLocaleString(), val: val});
-            historyArr = historyArr.slice(0, 20); // 保留最近20筆
-            localStorage.setItem('myHistory', JSON.stringify(historyArr));
-        }
-
-        document.getElementById('click-area').onclick = () => { count++; updateDisplay(); };
-
-        // --- 音檔與計時同步 ---
-        function playAudioWithTimer() {
-            audio.play();
-            if (!running) startTimer();
-        }
-
-        function stopAudioWithTimer() {
-            audio.pause();
-            audio.currentTime = 0;
-            if (running) pauseTimer();
         }
 
         function startTimer() {
@@ -156,8 +144,26 @@
             return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(mil).padStart(2, '0')}`;
         }
 
+        // --- 其他原有功能 ---
+        function resize(delta) { fontSize += delta; if(fontSize < 40) fontSize = 40; updateDisplay(); localStorage.setItem('myFontSize', fontSize); }
+        
+        function safeReset() {
+            if (confirm("⚠️ 確定要歸零計數嗎？")) {
+                if (count > 0) saveHistory(count);
+                count = 0; updateDisplay();
+            }
+        }
+
+        function saveHistory(val) {
+            historyArr.unshift({time: new Date().toLocaleString(), val: val});
+            historyArr = historyArr.slice(0, 20);
+            localStorage.setItem('myHistory', JSON.stringify(historyArr));
+        }
+
+        document.getElementById('click-area').onclick = () => { count++; updateDisplay(); };
+
         document.getElementById('stop-btn').onclick = () => {
-            if (running) pauseTimer();
+            if (running) toggleAudioAndTimer(); // 如果還在跑，先觸發停止
             if (elapsedTime > 0 || count > 0) {
                 alert("練習結束！\n耗時：" + formatTime(elapsedTime) + "\n累計次數：" + count);
                 if(count > 0) saveHistory(count);
@@ -168,7 +174,7 @@
             }
         };
 
-        // --- 上半部手勢 (滑動與縮放) ---
+        // --- 上半部手勢 ---
         const slider = document.getElementById('slider');
         const dot1 = document.getElementById('dot1');
         const dot2 = document.getElementById('dot2');
@@ -210,7 +216,6 @@
         setupTouch('green-dot');
         setupTouch('buddha-img');
 
-        // --- 歷史紀錄顯示 ---
         function toggleHistory() {
             const p = document.getElementById('history-panel');
             const isHidden = p.style.display === 'none' || p.style.display === '';
