@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>佛系計數計時器 v1.1</title>
+    <title>佛系計數計時器 v1.4</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F5DC; font-family: sans-serif; user-select: none; }
 
         /* 上半部 */
         #top-section {
-            height: 45vh; width: 100%; background: #ffffff; border-bottom: 2px solid #8B4513;
+            height: 40vh; width: 100%; background: #ffffff; border-bottom: 2px solid #8B4513;
             position: relative; overflow: hidden; touch-action: none;
         }
         #slider { display: flex; width: 200%; height: 100%; transition: transform 0.3s ease; }
@@ -19,27 +19,27 @@
         #buddha-img { max-height: 90%; max-width: 90%; transform: translate(0,0) scale(1); object-fit: contain; }
 
         /* 下半部 */
-        #bottom-section { height: 55vh; width: 100%; position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+        #bottom-section { height: 60vh; width: 100%; position: relative; display: flex; flex-direction: column; align-items: center; padding-top: 5px; }
         #click-area { width: 100%; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; }
-        #sacred-text { color: #8B4513; font-family: '標楷體'; font-size: 24px; font-weight: 900; margin-bottom: 5px; }
-        #counter { color: #00008B; font-size: 100px; font-weight: bold; line-height: 1; }
-        #timer-display { font-size: 1.5rem; font-family: monospace; color: #444; margin: 10px 0; font-weight: bold; }
+        #sacred-text { color: #8B4513; font-family: '標楷體'; font-size: 22px; font-weight: 900; margin-bottom: 2px; }
+        #counter { color: #00008B; font-size: 80px; font-weight: bold; line-height: 1; }
+        #timer-display { font-size: 1.2rem; font-family: monospace; color: #444; font-weight: bold; }
+        #projection-info { font-size: 0.9rem; color: #d35400; font-weight: bold; margin-top: 5px; text-align: center; line-height: 1.3; }
 
         /* 按鈕區 */
-        .ui-panel { width: 95%; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 15px; }
-        .btn { padding: 12px 10px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; color: white; transition: background 0.3s; }
+        .ui-panel { width: 95%; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 10px; }
+        .btn { padding: 10px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; transition: background 0.3s; }
         
         #audio-toggle-btn { background-color: #4A90E2; flex: 1; font-size: 1rem; }
         #audio-toggle-btn.playing { background-color: #555; }
         #auto-btn { background-color: #27ae60; min-width: 60px; }
         #auto-btn.active { background-color: #e67e22; }
 
-        .btn-timer-stop { background-color: #e74c3c; flex: 1 1 100%; margin-top: 5px; } 
+        .btn-timer-stop { background-color: #e74c3c; flex: 1 1 100%; margin-top: 2px; } 
         .btn-reset { background-color: #d9534f; font-size: 12px; }
         
-        #history-btn { position: absolute; right: 15px; top: -55px; width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 2px solid #8B4513; display: flex; align-items: center; justify-content: center; font-size: 22px; z-index: 200; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        #history-panel { position: absolute; top: -10px; right: 15px; width: 220px; background: white; border: 2px solid #8B4513; border-radius: 8px; display: none; z-index: 1000; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .dots-nav { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+        #history-btn { position: absolute; right: 15px; top: -50px; width: 40px; height: 40px; border-radius: 50%; background: #fff; border: 2px solid #8B4513; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 200; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #history-panel { position: absolute; top: -10px; right: 15px; width: 240px; background: white; border: 2px solid #8B4513; border-radius: 8px; display: none; z-index: 1000; padding: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .dot-nav { width: 6px; height: 6px; border-radius: 50%; background: #ccc; }
         .dot-nav.active { background: #8B4513; }
     </style>
@@ -51,10 +51,6 @@
             <div class="slide-page"><img id="buddha-img" src="1000010289.png" alt="大自在王佛"></div>
         </div>
         <div id="history-btn">🕒</div>
-        <div class="dots-nav">
-            <div id="dot1" class="dot-nav active"></div>
-            <div id="dot2" class="dot-nav"></div>
-        </div>
     </div>
 
     <div id="bottom-section">
@@ -70,13 +66,14 @@
             <div id="sacred-text">南無本師大自在王佛</div>
             <div id="counter">0</div>
             <div id="timer-display">00:00:00</div>
+            <div id="projection-info"></div>
         </div>
 
         <div class="ui-panel">
             <button id="audio-toggle-btn" class="btn" onclick="toggleAudioAndTimer()">▶ 播放/計時</button>
             <button id="auto-btn" class="btn" onclick="toggleAuto()">自動</button>
             
-            <div style="display:flex; gap:8px; width: 100%; justify-content: center;">
+            <div style="display:flex; gap:6px; width: 100%; justify-content: center;">
                 <button class="btn btn-reset" onclick="safeReset()">歸零</button>
                 <button class="btn" style="background:#8B4513;" onclick="resize(-10)">－</button>
                 <button class="btn" style="background:#8B4513;" onclick="resize(10)">＋</button>
@@ -90,22 +87,35 @@
 
     <script>
         let count = parseInt(localStorage.getItem('myCounter')) || 0;
-        let fontSize = parseInt(localStorage.getItem('myFontSize')) || 100;
+        let fontSize = parseInt(localStorage.getItem('myFontSize')) || 80;
         let historyArr = JSON.parse(localStorage.getItem('myHistory')) || [];
         let timerInterval, autoInterval, elapsedTime = 0, startTime, running = false, autoRunning = false;
         const audio = document.getElementById('sacred-audio');
         const toggleBtn = document.getElementById('audio-toggle-btn');
         const autoBtn = document.getElementById('auto-btn');
+        const projInfo = document.getElementById('projection-info');
 
         function updateDisplay() {
             document.getElementById('counter').innerText = count;
             document.getElementById('counter').style.fontSize = fontSize + "px";
             localStorage.setItem('myCounter', count);
+            
+            if (count >= 30000) {
+                projInfo.innerText = "九字禪已達成三萬聲！";
+            } else if (count > 0 && elapsedTime > 0) {
+                const msPerCount = elapsedTime / count;
+                const remaining = 30000 - count;
+                const totalRemainingMs = remaining * msPerCount;
+                const finishTime = new Date(Date.now() + totalRemainingMs);
+                projInfo.innerHTML = `預估三萬聲尚需: ${formatTime(totalRemainingMs)}<br>預計完成時間: ${finishTime.getHours()}:${String(finishTime.getMinutes()).padStart(2,'0')}`;
+            } else {
+                projInfo.innerText = "";
+            }
         }
 
         function manualCount() {
             count++;
-            if(autoRunning) toggleAuto(); // 手動點擊時暫停自動模式
+            if(autoRunning) toggleAuto();
             updateDisplay();
         }
 
@@ -144,7 +154,8 @@
             timerInterval = setInterval(() => {
                 const now = Date.now();
                 document.getElementById('timer-display').innerText = formatTime(elapsedTime + (now - startTime));
-            }, 10);
+                updateDisplay();
+            }, 1000);
             running = true;
         }
 
@@ -155,21 +166,24 @@
         }
 
         function formatTime(ms) {
-            let m = Math.floor(ms / 60000), s = Math.floor((ms % 60000) / 1000), mil = Math.floor((ms % 1000) / 10);
-            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}:${String(mil).padStart(2, '0')}`;
+            let totalSec = Math.floor(ms / 1000);
+            let h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60;
+            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        function resize(delta) { fontSize += delta; if(fontSize < 40) fontSize = 40; updateDisplay(); localStorage.setItem('myFontSize', fontSize); }
+        function resize(delta) { fontSize += delta; if(fontSize < 30) fontSize = 30; updateDisplay(); localStorage.setItem('myFontSize', fontSize); }
         
         function safeReset() {
             if (confirm("⚠️ 確定要歸零計數嗎？")) {
-                if (count > 0) saveHistory(count);
+                if (count > 0) saveHistory(count, formatTime(elapsedTime));
                 count = 0; updateDisplay();
             }
         }
 
-        function saveHistory(val) {
-            historyArr.unshift({time: new Date().toLocaleString(), val: val});
+        function saveHistory(val, duration) {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+            historyArr.unshift({time: now.toLocaleString(), end: timeStr, duration: duration, val: val});
             historyArr = historyArr.slice(0, 20);
             localStorage.setItem('myHistory', JSON.stringify(historyArr));
         }
@@ -177,53 +191,15 @@
         document.getElementById('stop-btn').onclick = () => {
             if (running) toggleAudioAndTimer();
             if (elapsedTime > 0 || count > 0) {
-                alert("練習結束！\n耗時：" + formatTime(elapsedTime) + "\n累計次數：" + count);
-                if(count > 0) saveHistory(count);
+                const finalDuration = formatTime(elapsedTime);
+                const endTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                alert(`練習結束！\n總需時長：${finalDuration}\n結束時間：${endTime}\n累計次數：${count}`);
+                if(count > 0) saveHistory(count, finalDuration);
                 elapsedTime = 0; count = 0;
                 document.getElementById('timer-display').innerText = "00:00:00";
                 updateDisplay();
             }
         };
-
-        // ... (保持原有的 Slider 與 Touch 邏輯不變)
-        const slider = document.getElementById('slider');
-        const dot1 = document.getElementById('dot1');
-        const dot2 = document.getElementById('dot2');
-        let startX_slide = 0, currentSlide = 0;
-        document.getElementById('top-section').addEventListener('touchstart', (e) => {
-            if(e.touches.length === 1) startX_slide = e.touches[0].pageX;
-        }, {passive: true});
-        document.getElementById('top-section').addEventListener('touchend', (e) => {
-            let diff = startX_slide - e.changedTouches[0].pageX;
-            if (Math.abs(diff) > 80) {
-                currentSlide = diff > 0 ? 1 : 0;
-                slider.style.transform = `translateX(-${currentSlide * 50}%)`;
-                dot1.classList.toggle('active', currentSlide === 0);
-                dot2.classList.toggle('active', currentSlide === 1);
-            }
-        });
-        
-        function setupTouch(id) {
-            let el = document.getElementById(id), scale = 1, lastScale = 1, posX = 0, posY = 0, lastPosX = 0, lastPosY = 0, sDist = 0, sX = 0, sY = 0;
-            el.addEventListener('touchstart', (e) => {
-                if (e.touches.length === 1) { sX = e.touches[0].pageX; sY = e.touches[0].pageY; }
-                else if (e.touches.length === 2) sDist = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
-            }, {passive: false});
-            el.addEventListener('touchmove', (e) => {
-                if (e.touches.length > 0) e.preventDefault();
-                if (e.touches.length === 1) {
-                    posX = lastPosX + (e.touches[0].pageX - sX);
-                    posY = lastPosY + (e.touches[0].pageY - sY);
-                } else if (e.touches.length === 2) {
-                    let d = Math.hypot(e.touches[0].pageX-e.touches[1].pageX, e.touches[0].pageY-e.touches[1].pageY);
-                    scale = lastScale * (d / sDist);
-                }
-                el.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-            }, {passive:false});
-            el.addEventListener('touchend', () => { lastPosX = posX; lastPosY = posY; lastScale = scale; });
-        }
-        setupTouch('green-dot');
-        setupTouch('buddha-img');
 
         function toggleHistory() {
             const p = document.getElementById('history-panel');
@@ -232,8 +208,7 @@
             if(isHidden) {
                 document.getElementById('hist-list').innerHTML = historyArr.length ? historyArr.map(h => 
                     `<div style="border-bottom:1px solid #eee; padding:8px 5px; font-size:12px;">
-                        <span style="color:#666;">${h.time}</span><br>
-                        <b>計數：${h.val} 次</b>
+                        ${h.time} | <b>${h.val}次 | ${h.duration}</b>
                     </div>`).join('') : "暫無紀錄";
             }
         }
