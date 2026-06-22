@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>佛系計數計時器 v1.4</title>
+    <title>佛系計數計時器 v1.5</title>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #F5F5DC; font-family: sans-serif; user-select: none; }
@@ -102,14 +102,12 @@
             
             if (count >= 30000) {
                 projInfo.innerText = "九字禪已達成三萬聲！";
-            } else if (count > 0 && elapsedTime > 0) {
-                const msPerCount = elapsedTime / count;
-                const remaining = 30000 - count;
-                const totalRemainingMs = remaining * msPerCount;
-                const finishTime = new Date(Date.now() + totalRemainingMs);
-                projInfo.innerHTML = `預估三萬聲尚需: ${formatTime(totalRemainingMs)}<br>預計完成時間: ${finishTime.getHours()}:${String(finishTime.getMinutes()).padStart(2,'0')}`;
             } else {
-                projInfo.innerText = "";
+                const remaining = 30000 - count;
+                // 強制以 0.5 秒/聲計算
+                const remainingMs = remaining * 500;
+                const finishTime = new Date(Date.now() + remainingMs);
+                projInfo.innerHTML = `預估剩餘: ${formatTime(remainingMs)}<br>預計 ${finishTime.getHours()}:${String(finishTime.getMinutes()).padStart(2,'0')} 完成`;
             }
         }
 
